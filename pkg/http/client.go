@@ -112,6 +112,10 @@ func parseQueryParams(req *http.Request) []string {
 
 	q := req.URL.Query()
 	for k, vs := range q {
+		if len(vs) > 1 {
+			slices.SortFunc(vs, asciiCompare)
+		}
+
 		v := strings.Join(vs, ",")
 		params = append(params, toParamStr(k, v))
 	}

@@ -1,13 +1,20 @@
 package http
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewRequest_BuildURLFailure(t *testing.T) {
-	// TODO
+	c := NewClient(ClientConfig{
+		Host: ".f:://g",
+	}, nil)
+	_, err := c.NewRequest("GET", "/test", nil)
+	require.Error(t, err)
+	require.Equal(t, "build request url: parse \".f:://g\": first path segment in URL cannot contain colon", err.Error())
 }
 
 func TestAsciiCompare(t *testing.T) {
@@ -41,9 +48,13 @@ func TestAsciiCompare(t *testing.T) {
 }
 
 func TestParseQueryParams_ListValue(t *testing.T) {
-	// TODO
-}
+	reqURI := "/test?test-list=b&test-list=a&example-1=12"
 
-func TestDo_InvalidSecretKey(t *testing.T) {
-	// TODO
+	req, err := http.NewRequest("GET", reqURI, nil)
+	require.NoError(t, err)
+
+	params := parseQueryParams(req)
+	require.Equal(t, 2, len(params))
+	require.Equal(t, "example-1=12", params[0])
+	require.Equal(t, "test-list=a,b", params[1])
 }
