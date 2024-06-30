@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -15,7 +16,7 @@ import (
 )
 
 // Client wraps http.Client handling the EcoFlow API requests configuration like auth, signing parameters
-// and setting the target host URL - all based on the pre-provided ClientConfig.
+// and setting the target host URL - all based on the provided ClientConfig.
 type Client interface {
 	// NewRequest wraps http.NewRequest() setting the pre-configured host URL into the created request.
 	NewRequest(method, url string, body io.Reader) (*http.Request, error)
@@ -97,16 +98,6 @@ func asciiCompare(a, b string) int {
 	return 1
 }
 
-func hasJSONBody(req *http.Request) bool {
-	ct := req.Header.Get(headerContentType)
-	return strings.ToLower(ct) == contentTypeJSON
-}
-
-func parseJSONParams(req *http.Request) []string {
-	// TODO
-	return nil
-}
-
 func parseQueryParams(req *http.Request) []string {
 	var params []string
 
@@ -124,11 +115,75 @@ func parseQueryParams(req *http.Request) []string {
 	return params
 }
 
-func parseParams(req *http.Request) []string {
+func jsonElementToKVs(key string, el any) []string {
+	var params []string
+	switch elTyped := el.(type) {
+	case map[string]any:
+		params = append(params, jsonObjToKVs(key, elTyped)...)
+	case []any:
+		params = append(params, jsonListToKVs(key, elTyped)...)
+	default:
+		params = append(params, toParamStr(key, fmt.Sprint(el)))
+	}
+	return params
+}
+
+func jsonListToKVs(key string, l []any) []string {
+	var params []string
+	for i, el := range l {
+		innerKey := fmt.Sprintf("%v[%v]", key, i)
+		params = append(params, jsonElementToKVs(innerKey, el)...)
+	}
+	return params
+}
+
+func jsonObjToKVs(key string, obj map[string]any) []string {
+	var params []string
+	for k, v := range obj {
+		innerKey := k
+		if len(key) > 0 {
+			innerKey = key + "." + innerKey
+		}
+		params = append(params, jsonElementToKVs(innerKey, v)...)
+	}
+	return params
+}
+
+func jsonToKVList(in map[string]any) []string {
+	return jsonObjToKVs("", in)
+}
+
+func parseJSONParams(req *http.Request) ([]string, error) {
+	if req.Body == nil {
+		return nil, fmt.Errorf("invalid request: must contain a non-nil body since content-type is JSON")
+	}
+
+	rawBody, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read request body: %w", err)
+	}
+
+	var body map[string]any
+	err = json.Unmarshal(rawBody, &body)
+	if err != nil {
+		return nil, fmt.Errorf("parse JSON request body: %w", err)
+	}
+
+	params := jsonToKVList(body)
+	slices.SortFunc(params, asciiCompare)
+	return params, nil
+}
+
+func hasJSONBody(req *http.Request) bool {
+	ct := req.Header.Get(headerContentType)
+	return strings.ToLower(ct) == contentTypeJSON
+}
+
+func parseParams(req *http.Request) ([]string, error) {
 	if hasJSONBody(req) {
 		return parseJSONParams(req)
 	}
-	return parseQueryParams(req)
+	return parseQueryParams(req), nil
 }
 
 func newNonce() string {
@@ -165,7 +220,11 @@ func (c *client) calcSignature(params []string) (signature, error) {
 }
 
 func (c *client) Do(req *http.Request) (*http.Response, error) {
-	params := parseParams(req)
+	params, err := parseParams(req)
+	if err != nil {
+		return nil, fmt.Errorf("parse request parameters: %w", err)
+	}
+
 	sign, err := c.calcSignature(params)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
