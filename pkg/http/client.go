@@ -176,7 +176,7 @@ func parseJSONParams(req *http.Request) ([]string, error) {
 
 func hasJSONBody(req *http.Request) bool {
 	ct := req.Header.Get(headerContentType)
-	return strings.ToLower(ct) == contentTypeJSON
+	return strings.Contains(strings.ToLower(ct), contentTypeJSON)
 }
 
 func parseParams(req *http.Request) ([]string, error) {
