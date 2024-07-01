@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -162,6 +163,7 @@ func parseJSONParams(req *http.Request) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read request body: %w", err)
 	}
+	req.Body = io.NopCloser(bytes.NewReader(rawBody))
 
 	var body map[string]any
 	err = json.Unmarshal(rawBody, &body)

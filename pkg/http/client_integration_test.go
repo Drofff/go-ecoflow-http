@@ -101,7 +101,7 @@ func TestGetXBoostSwitch(t *testing.T) {
 
 	c := NewClient(clientConfig, http.DefaultClient)
 
-	reqJSON := fmt.Sprintf(`{"sn":"%v","params":{"cmdSet":32,"id":66,"quotas":["inv.cfgAcEnabled"]}}`, testDeviceSN)
+	reqJSON := fmt.Sprintf("{\"sn\":\"%v\",\"params\":{\"quotas\":[\"inv.cfgAcEnabled\",\"inv.cfgAcXboost\"]}}", testDeviceSN)
 	req, err := c.NewRequest("POST", "/iot-open/sign/device/quota", strings.NewReader(reqJSON))
 	require.NoError(t, err)
 
