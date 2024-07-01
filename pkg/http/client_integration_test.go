@@ -82,9 +82,12 @@ func TestGetAllQuotaValues(t *testing.T) {
 
 	c := NewClient(clientConfig, http.DefaultClient)
 
-	reqURI := fmt.Sprintf("/iot-open/sign/device/quota/all?sn=%v", testDeviceSN)
-	req, err := c.NewRequest("GET", reqURI, nil)
+	req, err := c.NewRequest("GET", "/iot-open/sign/device/quota/all", nil)
 	require.NoError(t, err)
+
+	queryParams := req.URL.Query()
+	queryParams.Set("sn", testDeviceSN)
+	req.URL.RawQuery = queryParams.Encode()
 
 	resp, err := c.Do(req)
 	require.NoError(t, err)
