@@ -113,3 +113,30 @@ func TestGetXBoostSwitch(t *testing.T) {
 	data := parseResponse(t, resp)
 	assertResponseCode(t, data)
 }
+
+func TestTurnOnAC(t *testing.T) {
+	require.NotEmpty(t, testDeviceSN)
+
+	c := NewClient(clientConfig, http.DefaultClient)
+
+	reqJSON := fmt.Sprintf(`
+{
+	"sn": "%v",
+	"params": {
+		"cmdSet": 32,
+		"id": 66,
+		"enabled": 1, 
+		"xboost": 1
+	}
+}
+	`, testDeviceSN)
+	req, err := c.NewRequest("PUT", "/iot-open/sign/device/quota", strings.NewReader(reqJSON))
+	require.NoError(t, err)
+
+	req.Header.Add(headerContentType, contentTypeJSON)
+
+	resp, err := c.Do(req)
+
+	data := parseResponse(t, resp)
+	assertResponseCode(t, data)
+}
